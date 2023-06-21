@@ -1,0 +1,58 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./deploy/Dockerfile
+      target: prod
+    image: fastapi_starter:${FASTAPI_STARTER_VERSION:-latest}
+    restart: always
+    env_file:
+    - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FASTAPI_STARTER_HOST: 0.0.0.0
+      FASTAPI_STARTER_DB_HOST: fastapi_starter-db
+      FASTAPI_STARTER_DB_PORT: 5432
+      FASTAPI_STARTER_DB_USER: fastapi_starter
+      FASTAPI_STARTER_DB_PASS: fastapi_starter
+      FASTAPI_STARTER_DB_BASE: fastapi_starter
+
+  db:
+    image: postgres:13.8-bullseye
+    hostname: fastapi_starter-db
+    environment:
+      POSTGRES_PASSWORD: "fastapi_starter"
+      POSTGRES_USER: "fastapi_starter"
+      POSTGRES_DB: "fastapi_starter"
+    volumes:
+    - fastapi_starter-db-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: pg_isready -U fastapi_starter
+      interval: 2s
+      timeout: 3s
+      retries: 40
+
+  migrator:
+    image: fastapi_starter:${FASTAPI_STARTER_VERSION:-latest}
+    restart: "no"
+    command: alembic upgrade head
+    environment:
+      FASTAPI_STARTER_DB_HOST: fastapi_starter-db
+      FASTAPI_STARTER_DB_PORT: 5432
+      FASTAPI_STARTER_DB_USER: fastapi_starter
+      FASTAPI_STARTER_DB_PASS: fastapi_starter
+      FASTAPI_STARTER_DB_BASE: fastapi_starter
+    depends_on:
+      db:
+        condition: service_healthy
+
+
+
+volumes:
+  fastapi_starter-db-data:
+    name: fastapi_starter-db-data
